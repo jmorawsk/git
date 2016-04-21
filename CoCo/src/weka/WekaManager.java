@@ -96,6 +96,10 @@ public class WekaManager {
 		int validUsers = 0;
 
 		int totalFound = 0;
+
+		double status = trainUsers.size();
+		logger.log("Status Value:" + status);
+		logger.log("Weight:" + 1/(1 + Math.exp(-PREDICTION_WEIGHT_FACTOR*(status-PREDICTION_WEIGHT_THRESHOLD))));
 		
 		for(Integer id : evalUsers.keySet()) {
 			if(trainUsers.get(id) != null) {
@@ -140,7 +144,6 @@ public class WekaManager {
 					if(basePrediction == null)
 						basePrediction = 0f;
 					
-					double status = trainUsers.size();
 					prediction = adjustPrediction(basePrediction, prediction, status);
 					
 					//should be unnecessary
