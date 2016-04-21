@@ -32,7 +32,7 @@ public class WekaManager {
 	private boolean novel;
 	private Date endOfTraining;
 	private double PREDICTION_WEIGHT_THRESHOLD = 2854.3;
-	private double PREDICTION_WEIGHT_FACTOR = 0.001;
+	private double PREDICTION_WEIGHT_FACTOR = 0.01;
 
 	public WekaManager(Logger logger, Recommender recommender){
 		this(recommender.getDataset(), recommender.getSocialWeight(), recommender.getGaussScale(), recommender.isNovel());
@@ -116,13 +116,16 @@ public class WekaManager {
 				HashMap<String, Float> topFriendItems = new HashMap<String, Float>();
 				HashMap<String, Float> startItems = new HashMap<String, Float>();
 
-				topItems = PredictionHelper.topNpredictions(current, 3*outputSize, novel);
+//				topItems = PredictionHelper.topNpredictions(current, 3*outputSize, novel);
+				topBaseItems = PredictionHelper.topNpredictions(current, 3*outputSize, novel);
 				topFriendItems = PredictionHelper.topNFriendPredictions(current, 3*outputSize, novel);
 				
 				startItems.putAll(topFriendItems);
 				startItems.putAll(topBaseItems);
+//				topItems.putAll(topFriendItems);
 				
 				for(String locationId: startItems.keySet()){
+//				for(String locationId: topItems.keySet()){
 					
 					Location location = current.getLocations().get(locationId);
 					boolean visited = (evalUsers.get(id).getCheckinsForLocation(locationId) != null);
