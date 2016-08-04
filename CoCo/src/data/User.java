@@ -17,7 +17,8 @@ public class User {
 	private HashMap<String, Location> locations;
 	private String previousCheckInLocation;
 	private Date previousCheckInTime;
-	private Double thresholdDistance, farThresholdDistance;
+	private Double thresholdDistanceMean, farThresholdDistanceMean;
+	private Double thresholdDistanceMedian, farThresholdDistanceMedian;
 
 	public User(int id) {
 		this.setId(id);
@@ -113,24 +114,39 @@ public class User {
 		this.friendshipMap = friendshipMap;
 	}
 
-	public Double getThresholdDistance() {
-		return thresholdDistance;
+	public Double getThresholdDistanceMean() {
+		return thresholdDistanceMean;
 	}
 
-	public void setThresholdDistance(Double thresholdDistance) {
-		this.thresholdDistance = thresholdDistance;
+	public void setThresholdDistanceMean(Double thresholdDistance) {
+		this.thresholdDistanceMean = thresholdDistance;
 	}
 
-	public Double getFarThresholdDistance() {
-		return farThresholdDistance;
+	public Double getFarThresholdDistanceMean() {
+		return farThresholdDistanceMean;
 	}
 
-	public void setFarThresholdDistance(Double farThresholdDistance) {
-		this.farThresholdDistance = farThresholdDistance;
+	public void setFarThresholdDistanceMean(Double farThresholdDistance) {
+		this.farThresholdDistanceMean = farThresholdDistance;
 	}
 
+	public Double getThresholdDistanceMedian() {
+		return thresholdDistanceMean;
+	}
+
+	public void setThresholdDistanceMedian(Double thresholdDistance) {
+		this.thresholdDistanceMean = thresholdDistance;
+	}
+
+	public Double getFarThresholdDistanceMedian() {
+		return farThresholdDistanceMean;
+	}
+
+	public void setFarThresholdDistanceMedian(Double farThresholdDistance) {
+		this.farThresholdDistanceMean = farThresholdDistance;
+	}
+	
 	public String getPreviousCheckInLocation() {
-		// TODO Auto-generated method stub
 		return previousCheckInLocation;
 	}
 
@@ -141,5 +157,6 @@ public class User {
 	public int getFriendCount(){
 		return this.friendshipMap.size();
 	}
+
 	
 }

@@ -60,8 +60,12 @@ public class UserAnalyzer {
 					diffDayDistances.add(distance);
 			}
 		}
-		user.setThresholdDistance(ListHelper.mean(sameDayDistances));
-		user.setFarThresholdDistance(ListHelper.mean(distances));
+		Collections.sort(sameDayDistances);
+		Collections.sort(diffDayDistances);
+		user.setThresholdDistanceMean(ListHelper.mean(sameDayDistances));
+		user.setFarThresholdDistanceMean(ListHelper.mean(distances));
+		user.setThresholdDistanceMedian(ListHelper.median(sameDayDistances));
+		user.setFarThresholdDistanceMedian(ListHelper.median(distances));
 	}
 	
 	public static void analyzeFriendshipCovisits(User user) {

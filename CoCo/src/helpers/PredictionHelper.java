@@ -14,41 +14,41 @@ public class PredictionHelper {
 		float total = 0f;
 		boolean found = false;
 
-			for(Integer id : user.getNeighborhood().keySet()) {
-				User other = user.getUsers().get(id);
-				if(other.getCheckinsForLocation(location.getId()) != null) {
-					found = true;
-					total += user.getNeighborhood().get(id);
-				}
+		for(Integer id : user.getNeighborhood().keySet()) {
+			User other = user.getUsers().get(id);
+			if(other.getCheckinsForLocation(location.getId()) != null) {
+				found = true;
+				total += user.getNeighborhood().get(id);
 			}
-				/*
-				 * TODO determine if using everything below here, remember to search gaussian locations
-				 * spatial stuff
-				 */
-				
-				
-//				double distance = book.getDistance(getPreviousCheckIn().getEvent());
-//
-////				if( getPreviousCheckIn().getTime().getDay() == day) {
-////					total *= Runner.gaussian(thresholdDistance, distance);
-////				} else {
-//				double weight = Runner.gaussian(farThresholdDistance, distance);
-//				if(Double.isNaN(weight)){
-//					weight = 0.5;
-//				}
-//				total *= weight;
-//				}
-				
-				/*
-				 * End of spatial stuff
-				 */
-			
+		}
+		/*
+		 * TODO determine if using everything below here, remember to search gaussian locations
+		 * spatial stuff
+		 */
+
+
+		//				double distance = book.getDistance(getPreviousCheckIn().getEvent());
+		//
+		////				if( getPreviousCheckIn().getTime().getDay() == day) {
+		////					total *= Runner.gaussian(thresholdDistance, distance);
+		////				} else {
+		//				double weight = Runner.gaussian(farThresholdDistance, distance);
+		//				if(Double.isNaN(weight)){
+		//					weight = 0.5;
+		//				}
+		//				total *= weight;
+		//				}
+
+		/*
+		 * End of spatial stuff
+		 */
+
 		if(!found) {
 			return -1f;
 		}
 		return total;
 	}
-	
+
 	public static HashMap<String, Float> topNpredictions(User user, int n, boolean novel) {
 		HashMap<String, Float> top = new HashMap<String, Float>();
 		String lowest = "";
@@ -74,15 +74,15 @@ public class PredictionHelper {
 				}
 			}
 		}
-//		System.out.println("User " + user.getId() + "Top size" + top.size()
-//		+ "Neighbors" +user.getNeighborhood().size());
-//		System.exit(0);
-//		if(!top.isEmpty()){
-//			System.out.println(top.size());
-//		}
+		//		System.out.println("User " + user.getId() + "Top size" + top.size()
+		//		+ "Neighbors" +user.getNeighborhood().size());
+		//		System.exit(0);
+		//		if(!top.isEmpty()){
+		//			System.out.println(top.size());
+		//		}
 		return top;
 	}
-	
+
 	public static HashMap<String, Float> topNPredictionsForUserSet(User user, int n, Set<Integer> userSet, boolean novel) {
 		HashMap<String, Float> top = new HashMap<String, Float>();
 		String lowest = "";
@@ -111,15 +111,15 @@ public class PredictionHelper {
 				}
 			}
 		}
-//		System.out.println("User " + user.getId() + "Top size" + top.size()
-//		+ "Neighbors" +user.getNeighborhood().size());
-//		System.exit(0);
-//		if(!top.isEmpty()){
-//			System.out.println(top.size());
-//		}
+		//		System.out.println("User " + user.getId() + "Top size" + top.size()
+		//		+ "Neighbors" +user.getNeighborhood().size());
+		//		System.exit(0);
+		//		if(!top.isEmpty()){
+		//			System.out.println(top.size());
+		//		}
 		return top;
 	}
-	
+
 	public static HashMap<String, Float> topNFriendPredictions(User user, int n, boolean novel) {
 
 		return topNPredictionsForUserSet(user, n, user.getFriendshipMap().keySet(), novel);
@@ -137,7 +137,7 @@ public class PredictionHelper {
 		}
 		return lowest;
 	}
-	
+
 	public static Float spatialPredictionFar(User user, Location location, Double gaussScale){
 		if(user.getLocations() == null){
 			return 1f;
@@ -146,11 +146,16 @@ public class PredictionHelper {
 		if(previous == null){
 			return 1f;
 		}
+		
 		double distance = location.getDistance(previous);
-
-		return (float) MathHelper.gaussian(user.getFarThresholdDistance(), distance, gaussScale);
+		
+		if(Double.isNaN(distance)){
+			return 1f;
+		}
+		
+		return (float) MathHelper.gaussian(user.getFarThresholdDistanceMean(), distance, gaussScale);
 	}
-	
+
 	public static Float spatialPredictionNear(User user, Location location, Double gaussScale){
 		if(user.getLocations() == null){
 			return 1f;
@@ -161,9 +166,9 @@ public class PredictionHelper {
 		}
 		double distance = location.getDistance(previous);
 
-		return (float) MathHelper.gaussian(user.getThresholdDistance(), distance, gaussScale);
+		return (float) MathHelper.gaussian(user.getThresholdDistanceMean(), distance, gaussScale);
 	}
-	
+
 	public static Float socialPrediction(User user, Location location, float socialWeight){
 		float total = 0f;
 		float totalFriendship = 0f;
@@ -179,7 +184,7 @@ public class PredictionHelper {
 		}
 		return total/totalFriendship;
 	}
-	
+
 	public static Float temporalPredictionLatest(User user, Location location, Date startDate, Date currentDate){
 		Date lastDate = null;
 		if(location.getCheckIns()== null){
@@ -193,7 +198,7 @@ public class PredictionHelper {
 		}
 		return (float) (lastDate.getTime() - startDate.getTime()) / (float) (currentDate.getTime() - startDate.getTime());
 	}
-	
+
 	public static Float temporalPredictionGeneral(User user, Location location, Date startDate, Date currentDate){
 		float total = 0f;
 		if(location.getCheckIns()== null){
@@ -205,5 +210,95 @@ public class PredictionHelper {
 		}
 		return total/ (location.getCheckIns().size());
 	}
+
+	public static HashMap<String, Float> topNspatialPredictions(User user, int n, boolean novel, Double gaussScale){
+		HashMap<String, Float> top = new HashMap<String, Float>();
+		String lowest = "";
+
+		for(String locationId : user.getLocations().keySet()) {
+			if(top.containsKey(locationId))
+				continue;
+			if(novel && user.getCheckIns().containsKey(locationId)){
+				continue;
+			}
+
+			Float value = spatialPredictionFar(user, user.getLocations().get(locationId), gaussScale);
+			if(top.size() < n) {
+				top.put(locationId, value);
+				lowest = getLowest(top);
+			}else {
+				lowest = getLowest(top);
+				if (value > top.get(lowest)) {
+					top.remove(lowest);
+					top.put(locationId, value);
+					lowest = getLowest(top);
+				}
+			}
+		}
+		return top;
+	}
 	
+	public static HashMap<String, Float> topNTemporalPredictionsLatest(User user, int n, boolean novel, 
+			Date startDate, Date currentDate) {
+		HashMap<String, Float> top = new HashMap<String, Float>();
+		String lowest = "";
+
+
+		for(Integer id : user.getUsers().keySet()) {
+			if(user.getUsers().get(id) == null){
+				continue;
+			}
+			User other = user.getUsers().get(id);
+			String item = other.getPreviousCheckInLocation();
+				
+				if(top.containsKey(item))
+					continue;
+				if(novel && user.getCheckIns().containsKey(item)){
+					continue;
+				}
+				long last = other.getPreviousCheckInTime().getTime();
+				Float value = (float) (last - startDate.getTime()) / 
+						(float) (currentDate.getTime() - startDate.getTime());
+				if(top.size() < n) {
+					top.put(item, value);
+					lowest = getLowest(top);
+				}else {
+					lowest = getLowest(top);
+					if (value > top.get(lowest)) {
+						top.remove(lowest);
+						top.put(item, value);
+						lowest = getLowest(top);
+					
+				}
+			}
+		}
+		return top;
+	}
+	
+	public static HashMap<String, Float> topNTemporalPredictionsGeneral(User user, int n, boolean novel, 
+			Date startDate, Date currentDate) {
+		HashMap<String, Float> top = new HashMap<String, Float>();
+		String lowest = "";
+		for(String locationId : user.getLocations().keySet()) {
+			if(top.containsKey(locationId))
+				continue;
+			if(novel && user.getCheckIns().containsKey(locationId)){
+				continue;
+			}
+
+			Float value = temporalPredictionGeneral(user, user.getLocations().get(locationId), startDate, currentDate);
+			if(top.size() < n) {
+				top.put(locationId, value);
+				lowest = getLowest(top);
+			}else {
+				lowest = getLowest(top);
+				if (value > top.get(lowest)) {
+					top.remove(lowest);
+					top.put(locationId, value);
+					lowest = getLowest(top);
+				}
+			}
+		}
+		return top;
+	}
 }

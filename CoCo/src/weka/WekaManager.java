@@ -1,10 +1,13 @@
 package weka;
 
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Set;
+import java.util.Vector;
 
 import data.Location;
+import data.Pair;
 import data.User;
 import helpers.Dataset;
 import helpers.Logger;
@@ -29,24 +32,29 @@ public class WekaManager {
 	private HashMap<String, Location> evalLocations;
 	private Float socialWeight;
 	private Double gaussScale;
+	private int samplingChoice;
 	private boolean novel;
 	private Date endOfTraining;
-	private double PREDICTION_WEIGHT_THRESHOLD = 2854.3;
-	private double PREDICTION_WEIGHT_FACTOR = 0.01;
+//	private double PREDICTION_WEIGHT_THRESHOLD = 2854.3; //Maybe 11.5 for average checkins
+//	private double PREDICTION_WEIGHT_FACTOR = 0.01; //Maybe 10 for average checkins
+	private double PREDICTION_WEIGHT_THRESHOLD = 11.5; //
+	private double PREDICTION_WEIGHT_FACTOR = 10; //
 
 	public WekaManager(Logger logger, Recommender recommender){
-		this(recommender.getDataset(), recommender.getSocialWeight(), recommender.getGaussScale(), recommender.isNovel());
+		this(recommender.getDataset(), recommender.getSocialWeight(), recommender.getGaussScale(), 
+				recommender.isNovel(), recommender.getSamplingChoice());
 		this.logger = logger;
 		this.endOfTraining = recommender.getEndOfTraining();
 		this.assignMappings(recommender.getTrainingUsers(), recommender.getTrainingLocations(),
 				recommender.getEvalUsers(), recommender.getEvalLocations());
 	}
 	
-	private WekaManager(Dataset dataset, float socialWeight,Double gaussScale, boolean novel){
+	private WekaManager(Dataset dataset, float socialWeight,Double gaussScale, boolean novel, int samplingChoice){
 		this.dataset = dataset;
 		this.socialWeight = socialWeight;
 		this.gaussScale = gaussScale;
 		this.novel = novel;
+		this.samplingChoice = samplingChoice;
 	}
 
 	private void assignMappings(HashMap<Integer, User> trainUsers, HashMap<String, Location> trainLocations,
@@ -62,7 +70,15 @@ public class WekaManager {
 //		Instances instances = wekaReader.getWekaCheckIns(trainUsers, trainLocations, socialWeight, gaussScale, endOfTraining);
 //		Instances instances = wekaReader.getWekaFromMatrix(trainUsers, trainLocations, socialWeight, gaussScale, endOfTraining);
 //		Instances instances = wekaReader.getWekaFromPartialMatrix(trainUsers, trainLocations, socialWeight, gaussScale, endOfTraining);
-		Instances instances = wekaReader.getWekaFromRecent(trainUsers, trainLocations, socialWeight, gaussScale, endOfTraining);
+//		Instances instances = wekaReader.getWekaUndersample(trainUsers, trainLocations, socialWeight, gaussScale, endOfTraining, 1);
+		
+		long startTime = System.currentTimeMillis();
+		logger.log("Start weka instances at:" + startTime);
+		Instances instances = wekaReader.getWekaInstances(trainUsers, trainLocations,
+				socialWeight, gaussScale, endOfTraining, samplingChoice);
+		long duration = (System.currentTimeMillis() - startTime);
+		logger.log("Weka instances took:" + duration);
+		
 		RandomForest forestClassifier = new RandomForest();
 		String[] options;
 		Evaluation eTest = null;
@@ -92,12 +108,15 @@ public class WekaManager {
 	private void evaluateWeka(Evaluation evaluator, Classifier classifier, Instances instances, int outputSize){
 		float meanPrecision = 0.0f;
 		float userCoverage = 0.0f;
+		float utility = 0.0f;
+		
+		float meanAveragePrecision = 0.0f;
 		int totalValid = 0;
 		int validUsers = 0;
-
 		int totalFound = 0;
 
-		double status = trainUsers.size();
+		double status = trainUsers.size(); //Maybe could change to locations/user
+		status = trainLocations.size()/trainUsers.size();
 		logger.log("Status Value:" + status);
 		logger.log("Weight:" + 1/(1 + Math.exp(-PREDICTION_WEIGHT_FACTOR*(status-PREDICTION_WEIGHT_THRESHOLD))));
 		
@@ -157,10 +176,23 @@ public class WekaManager {
 				}
 				
 				topItems = MapHelper.getTopItems(topItems, outputSize);
-				
+
+				Vector<Pair> topPairs = new Vector<Pair>();
+				for(String item : topItems.keySet()) {
+					topPairs.add(new Pair(item, topItems.get(item)));
+				}
+				topPairs.sort(new Comparator<Pair>(){
+					@Override
+					public int compare(Pair arg0, Pair arg1) {
+						// TODO Auto-generated method stub
+						return Float.compare(arg1.value, arg0.value);
+					}
+					
+				});
 				int validVisits = 0;
 				int found = 0;
 				Set<String> oldKeys = current.getCheckIns().keySet();
+				float avgPrecision = 0.0f;
 				for(String item : evalUsers.get(id).getCheckIns().keySet()){
 					if(novel && oldKeys.contains(item)){
 						continue;
@@ -168,11 +200,22 @@ public class WekaManager {
 					validVisits++;
 					totalValid++;
 					
-					if(topItems.containsKey(item)){
-						totalFound++;
-						found++;
+					for(int position = 0; position < topPairs.size(); position++){
+						String recommendation = topPairs.get(position).id;
+						if(recommendation.equals(item)){
+							totalFound++;
+							found++;
+							
+							avgPrecision += new Float(found) / new Float(position+1);
+						}
 					}
 				}
+				if(found==0)
+					avgPrecision = 0;
+				else 
+					avgPrecision /= new Float(found);
+
+				meanAveragePrecision += avgPrecision;
 				
 				if(validVisits != 0){
 					meanPrecision += new Float(found) / (outputSize);
@@ -180,13 +223,18 @@ public class WekaManager {
 					if(!topItems.isEmpty() ){
 						userCoverage++;
 					}
+					if(found != 0){
+						utility++;
+					}
 				}
 				
 			}
 		}
+		meanAveragePrecision /= new Float(validUsers);
 		meanPrecision /= new Float(validUsers);
 		double meanRecall = new Float(totalFound)/totalValid;
 		userCoverage /= new Float(validUsers);
+		utility /= new Float(validUsers);
 
 		logger.log("Weka Results");
 		logger.log("Valid User count: " + validUsers);
@@ -195,10 +243,13 @@ public class WekaManager {
 		logger.log("Precision: " + meanPrecision);
 		logger.log("Recall: " + meanRecall);
 		logger.log("User Coverage: " + userCoverage);
+		logger.log("Utility: " + utility);
+		logger.log("MAP: " + meanAveragePrecision);
 	}
 	
 	public Float adjustPrediction(double basePrediction, double wekaPrediction, double status){
 		double weight = 1/(1 + Math.exp(-PREDICTION_WEIGHT_FACTOR*(status-PREDICTION_WEIGHT_THRESHOLD)));
+		weight = 0;
 		return (float) (weight*basePrediction + (1-weight)*wekaPrediction);
 	}
 }

@@ -104,9 +104,45 @@ public class WekaDataReader {
 
 	}
 	
+	public Instances getWekaInstances(HashMap<Integer, User> trainUsers, HashMap<String, Location> trainLocations,
+			float socialWeight, Double gaussScale, Date endOfTraining, int choice){
+		/*Choices (old)
+		 * 0 full matrix (Base) //way too long
+		 * 1 full recent (1 month) //way too long
+		 * 2 undersample full //too long
+		 * 3 undersample recent (1 month) //too long
+		 * 4 undersample majority, all
+		 * 5 undersample majority, recent (1 month)
+		 * 
+		 * now just filters by days
+		 */
+		
+		switch(choice){
+//		case 0: return getWekaFromMatrix(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,0,1.0f);
+//		case 1: return getWekaFromMatrix(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,1,1.0f);
+//		case 2: return getWekaFromMatrix(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,0,0.1f);
+//		case 3: return getWekaFromMatrix(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,1,0.1f);
+		case 0: return getWekaUndersample(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,0);
+		case -1: return getWekaUndersample(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,0);
+		
+		
+		default: return getWekaUndersample(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,choice);
+//		default: return getWekaFromMatrix(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,0,1.0f);
+		}
+	
+		
+	}
+	
+	
 	public Instances getWekaFromMatrix(HashMap<Integer, User> trainUsers, HashMap<String, Location> trainLocations,
-			float socialWeight, Double gaussScale, Date endOfTraining){
+			float socialWeight, Double gaussScale, Date endOfTraining, int trainWindow, float sampling){
 
+		Random random = new Random(123);
+		Calendar calendar = Calendar.getInstance();
+		calendar.setTime(endOfTraining);
+		calendar.add(Calendar.MONTH, -trainWindow);
+		Date startOfTraining = calendar.getTime();
+		
 		logger.log("Train Users:" + trainUsers.size());
 		logger.log("Train Locations:" + trainLocations.size());
 
@@ -119,11 +155,22 @@ public class WekaDataReader {
 
 			User trainUser = trainUsers.get(userId);
 			for(String locationId: trainLocations.keySet()){
+				if(random.nextFloat() < sampling){
+					continue;
+				}
+				
 				Location trainLocation = trainLocations.get(locationId);
 				
 				ArrayList<Date> visits = trainUser.getCheckinsForLocation(locationId);
 				
 				boolean visited = (visits != null);
+				if(visited){
+					Date last = visits.get(visits.size() - 1);
+					Date first  = visits.get(0);
+					if(trainWindow>0 && last.before(startOfTraining) && first.before(startOfTraining)){
+						visited = false;
+					}
+				}
 				Date date = !visited ? endOfTraining : visits.get(0);
 
 				Instance instance = WekaInstanceHelper.createInstance(trainUser, trainLocation,
@@ -136,8 +183,13 @@ public class WekaDataReader {
 	}
 	
 	public Instances getWekaFromPartialMatrix(HashMap<Integer, User> trainUsers, HashMap<String, Location> trainLocations,
-			float socialWeight, Double gaussScale, Date endOfTraining){
+			float socialWeight, Double gaussScale, Date endOfTraining, int trainWindow){
 
+		Calendar calendar = Calendar.getInstance();
+		calendar.setTime(endOfTraining);
+		calendar.add(Calendar.MONTH, -trainWindow);
+		Date startOfTraining = calendar.getTime();
+		
 		logger.log("Train Users:" + trainUsers.size());
 		logger.log("Train Locations:" + trainLocations.size());
 
@@ -166,6 +218,13 @@ public class WekaDataReader {
 				ArrayList<Date> visits = trainUser.getCheckinsForLocation(locationId);
 				
 				boolean visited = (visits != null);
+				if(visited){
+					Date last = visits.get(visits.size() - 1);
+					Date first  = visits.get(0);
+					if(trainWindow>0 && last.before(startOfTraining) && first.before(startOfTraining)){
+						visited = false;
+					}
+				}
 				Date date = !visited ? endOfTraining : visits.get(0);
 
 				Instance instance = WekaInstanceHelper.createInstance(trainUser, trainLocation,
@@ -176,14 +235,17 @@ public class WekaDataReader {
 		return isTrainingSet;
 	}
 	
-	public Instances getWekaFromRecent(HashMap<Integer, User> trainUsers, HashMap<String, Location> trainLocations,
-			float socialWeight, Double gaussScale, Date endOfTraining){
+	public Instances getWekaUndersample(HashMap<Integer, User> trainUsers, HashMap<String, Location> trainLocations,
+			float socialWeight, Double gaussScale, Date endOfTraining, int trainWindow){
 
 		Calendar calendar = Calendar.getInstance();
 		calendar.setTime(endOfTraining);
-		calendar.add(Calendar.MONTH, -1);
+//		calendar.add(Calendar.MONTH, -trainWindow);
+		calendar.add(Calendar.DAY_OF_YEAR, -trainWindow);
 		Date startOfTraining = calendar.getTime();
 		
+
+		logger.log("Training window (days):" + trainWindow);
 		logger.log("Train Users:" + trainUsers.size());
 		logger.log("Train Locations:" + trainLocations.size());
 
@@ -214,7 +276,7 @@ public class WekaDataReader {
 				if(visited){
 					Date last = visits.get(visits.size() - 1);
 					Date first  = visits.get(0);
-					if(last.before(startOfTraining) && first.before(startOfTraining)){
+					if(trainWindow>0 && last.before(startOfTraining) && first.before(startOfTraining)){
 						continue;
 					}
 				}

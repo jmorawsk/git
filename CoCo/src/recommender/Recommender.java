@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Set;
 import java.util.Vector;
 
@@ -31,6 +32,7 @@ public class Recommender {
 	//	public Boolean timeWeight = false;
 	private Float socialWeight;
 	private Double gaussScale;
+	private int samplingChoice;
 
 	private Date endOfTraining;
 	private Date endOfTesting;
@@ -48,7 +50,7 @@ public class Recommender {
 	private HashMap<String, Location> evalLocations;
 
 	public Recommender(Logger logger, Dataset dataset, int neighborhoodSize, Float socialWeight,
-			Double gaussScale, boolean novel){
+			Double gaussScale, boolean novel, int samplingChoice){
 		this.logger = logger;
 		this.setDataset(dataset);
 		datasetReader = new DatasetReader(dataset);
@@ -56,6 +58,7 @@ public class Recommender {
 		this.setSocialWeight(socialWeight);
 		this.setGaussScale(gaussScale);
 		this.setNovel(novel);
+		this.setSamplingChoice(samplingChoice);
 
 		users = new HashMap<Integer, User>();
 		locations = new HashMap<String, Location>();
@@ -108,6 +111,17 @@ public class Recommender {
 		log("Testing Fraction: " + testPercentage);
 		runTraining();
 	}
+	
+
+	public void runByPercentage(float testPercentage) {
+		// TODO Auto-generated method stub
+		startRunLog();
+		this.testPercentage = testPercentage;
+		setEndOfTraining(getDataset().getEndDate());
+		endOfTesting = getDataset().getEndDate();
+		log("Testing Fraction: " + testPercentage);
+		runTraining();
+	}
 
 	private void startRunLog(){
 		log("Dataset: " + getDataset().toString() + 
@@ -153,13 +167,13 @@ public class Recommender {
 			UserAnalyzer.analyzeFriendshipCovisits(user);
 			UserAnalyzer.calculateCheckInWeights(user, getDataset().getStartDate(), getEndOfTraining());
 
-			Double closeValue = user.getThresholdDistance();
+			Double closeValue = user.getThresholdDistanceMean();
 			if(closeValue.isNaN()){
 				closeFails++;
 			} else {
 				close += closeValue;
 			}
-			Double farValue = user.getFarThresholdDistance();
+			Double farValue = user.getFarThresholdDistanceMean();
 			if(farValue.isNaN()){
 				farFails++;
 			}
@@ -171,10 +185,14 @@ public class Recommender {
 		far /= (getTrainingUsers().size() - farFails);
 		
 		for(User user : getTrainingUsers().values()) {
-			if(user.getThresholdDistance().isNaN())
-				user.setThresholdDistance(close);
-			if(user.getFarThresholdDistance().isNaN())
-				user.setFarThresholdDistance(far);
+			if(user.getThresholdDistanceMean().isNaN())
+				user.setThresholdDistanceMean(close);
+			if(user.getFarThresholdDistanceMean().isNaN())
+				user.setFarThresholdDistanceMean(far);
+			if(user.getThresholdDistanceMedian().isNaN())
+				user.setThresholdDistanceMedian(close);
+			if(user.getFarThresholdDistanceMedian().isNaN())
+				user.setFarThresholdDistanceMedian(far);
 		}
 	}
 	
@@ -213,19 +231,33 @@ public class Recommender {
 	
 	public void evaluate(int outputSize){
 
+		//Evaluate needs to show results for each type of recommendation
+		//Types: TOTAL Spatial Social Temporal combinations
+		//Note need: to compare spatial options in combination with others 
+		/*
+		 * Source types:
+		 * 0 - Fully Combined
+		 * 1 - Spatial
+		 * 2 - Temporal
+		 * 3 - Social
+		 */
+		
+		int compCount = 4;
+		
 		log("Output N: " + new Integer(outputSize).toString());
 		System.out.println("Evaluating Performance");
 		
-		float meanPrecision = 0.0f;
-		float userCoverage = 0.0f;
+		float[] meanPrecision = new float[compCount];
+		float[] meanRecall = new float[compCount];
+		float[] userCoverage = new float[compCount];
 		int totalValid = 0;
 		int validUsers = 0;
 
-		int totalFound = 0;
+		int[] totalFound = new int[compCount];
 		
 		for(Integer id : getEvalUsers().keySet()) {
 			if(getTrainingUsers().get(id) != null) {
-
+				
 				User current = getTrainingUsers().get(id);
 				if(getDataset().getCompetitor() == COMPETITOR.LURA){
 					if(!satisfiesLURAactivity(current,getEndOfTraining())){
@@ -233,11 +265,26 @@ public class Recommender {
 					}
 				}
 				
-				HashMap<String, Float> topItems = new HashMap<String, Float>();
-				topItems = PredictionHelper.topNpredictions(current, outputSize, isNovel());
-
+				List<HashMap<String, Float>> topItems = new ArrayList<HashMap<String, Float>>();
+				
+				topItems.add(PredictionHelper.topNpredictions(current, outputSize, isNovel()));
+				try{
+				topItems.add( PredictionHelper.topNspatialPredictions(
+						current, outputSize, isNovel(), gaussScale));
+				}
+				catch(Exception e){
+					System.out.println(e.toString());
+					e.printStackTrace();
+					System.out.println("User:" + current.getId());
+					topItems.add( PredictionHelper.topNspatialPredictions(
+							current, outputSize, isNovel(), gaussScale));
+				}
+				topItems.add(PredictionHelper.topNTemporalPredictionsGeneral(current, outputSize, isNovel(),
+						getDataset().getStartDate(),endOfTesting));
+				topItems.add(PredictionHelper.topNFriendPredictions(current, outputSize, isNovel()));
+				
 				int validVisits = 0;
-				int found = 0;
+				int[] found = new int[compCount];
 				Set<String> oldKeys = current.getCheckIns().keySet();
 				for(String item : getEvalUsers().get(id).getCheckIns().keySet()){
 					if(isNovel() && oldKeys.contains(item)){
@@ -246,32 +293,45 @@ public class Recommender {
 					validVisits++;
 					totalValid++;
 					
-					if(topItems.containsKey(item)){
-						totalFound++;
-						found++;
+					for(int index = 0; index < compCount; index++){
+						if(topItems.get(index).containsKey(item)){
+							totalFound[index]++;
+							found[index]++;
+						}
 					}
 				}
 				
 				if(validVisits != 0){
-					meanPrecision += new Float(found) / (outputSize);
-					validUsers++;
-					if(!topItems.isEmpty() ){
-						userCoverage++;
+					for(int index = 0; index < compCount; index++){
+						meanPrecision[index] += new Float(found[index]) / (outputSize);
+						validUsers++;
+						if(!topItems.isEmpty() ){
+							userCoverage[index]++;
+						}
 					}
+					
+					
 				}
 			}
 		}
-
-		meanPrecision /= new Float(validUsers);
-		double meanRecall = new Float(totalFound)/totalValid;
-		userCoverage /= new Float(validUsers);
+		
 
 		log("Valid User count: " + validUsers);
 		log("Total valid items occurred: " + totalValid);
-		log("Total relevant items recommended: " + totalFound);
-		log("Precision: " + meanPrecision);
-		log("Recall: " + meanRecall);
-		log("User Coverage: " + userCoverage);
+
+		for(int index = 0; index < compCount; index++){
+			meanPrecision[index] /= new Float(validUsers);
+			meanRecall[index] = new Float(totalFound[index])/totalValid;
+			userCoverage[index] /= new Float(validUsers);
+			
+			log("Results of source type: " + index);
+			log("Total relevant items recommended: " + totalFound[index]);
+			log("Precision: " + meanPrecision[index]);
+			log("Recall: " + meanRecall[index]);
+			log("User Coverage: " + userCoverage[index]);
+		}
+		
+
 	}
 
 	private void log(String message){
@@ -375,6 +435,15 @@ public class Recommender {
 	public void setEndOfTraining(Date endOfTraining) {
 		this.endOfTraining = endOfTraining;
 	}
+
+	public int getSamplingChoice() {
+		return this.samplingChoice;
+	}
+	
+	public void setSamplingChoice(int choice) {
+		this.samplingChoice = choice;
+	}
+
 
 	
 }
