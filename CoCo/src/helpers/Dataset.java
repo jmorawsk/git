@@ -8,13 +8,20 @@ import java.util.regex.Pattern;
 public class Dataset {
 
 	public static enum DATASETS {fourSquare, brightkite, gowalla};
-	public static enum COMPETITOR {LFBCA, LURA, LRT, NONE};
-
+	public static enum COMPETITOR {LFBCA, LURA, LRT, NONE, CEPR};
+	public static enum PERCENTAGE_ITEM {location, user, time};
+	
 	private DATASETS baseDataset;
 	private COMPETITOR competitor;
+	private PERCENTAGE_ITEM percentItem;
 	private Date startDate;
 	private Date endDate;
 
+
+	public PERCENTAGE_ITEM getPercentItem() {
+		return (competitor == COMPETITOR.CEPR) ? PERCENTAGE_ITEM.time : PERCENTAGE_ITEM.location;
+	}
+	
 	public Dataset(DATASETS dataset, COMPETITOR competitor){
 		this.baseDataset = dataset;
 		this.competitor = competitor;
@@ -62,6 +69,9 @@ public class Dataset {
 			}
 			if(this.competitor == COMPETITOR.LURA){
 				name = "brightkite_gowalla/Gowalla_totalCheckins_LURA.txt";
+			}
+			if(this.competitor == COMPETITOR.CEPR){
+				name = "brightkite_gowalla/Gowalla_totalCheckins_CEPR.txt";
 			}
 			break;
 		}
