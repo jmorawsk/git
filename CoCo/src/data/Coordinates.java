@@ -29,4 +29,8 @@ public class Coordinates {
 		longitude *= Math.signum(newLong);
 		
 	}
+	
+	public String toString(){
+		return (latitude+","+longitude);
+	}
 }
