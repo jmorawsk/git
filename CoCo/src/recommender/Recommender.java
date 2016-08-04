@@ -302,10 +302,10 @@ public class Recommender {
 				}
 				
 				if(validVisits != 0){
+					validUsers++;
 					for(int index = 0; index < compCount; index++){
 						meanPrecision[index] += new Float(found[index]) / (outputSize);
-						validUsers++;
-						if(!topItems.isEmpty() ){
+						if(!topItems.get(index).isEmpty() ){
 							userCoverage[index]++;
 						}
 					}
