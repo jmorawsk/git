@@ -14,12 +14,14 @@ import java.util.regex.Pattern;
 import data.Location;
 import data.User;
 import helpers.Dataset.DATASETS;
+import helpers.Dataset.PERCENTAGE_ITEM;
 
 
 public class DatasetReader {
 
 	private Dataset dataset;
 
+	
 	public DatasetReader(Dataset dataset){
 		this.dataset = dataset;
 	}
@@ -101,6 +103,7 @@ public class DatasetReader {
 
 			while ((line = fReader.readLine()) != null) {
 
+				int count = 0;
 				Matcher m = pattern.matcher(line);
 				m.find();
 
@@ -136,17 +139,36 @@ public class DatasetReader {
 						}
 					}
 				} else {
-					if(trainUsers.get(id) != null && trainUsers.get(id).getCheckinsForLocation(locationId)!=null){
-						addUserAndLocation(id, trainUsers, locationId, trainLocations, latitude, longitude, date);
+					
+					if (dataset.getPercentItem().equals(PERCENTAGE_ITEM.location)){
+						//This handles splitting dataset by random percentage, testing on percent of locations per user
+						//Training gets all checkins if location is in training for user
+						if(trainUsers.get(id) != null && trainUsers.get(id).getCheckinsForLocation(locationId)!=null){
+							addUserAndLocation(id, trainUsers, locationId, trainLocations, latitude, longitude, date);
+						}
+						//Testing gets all checkins if location is in testing for user
+						else if(evalUsers.get(id) != null && evalUsers.get(id).getCheckinsForLocation(locationId)!=null){
+							addUserAndLocation(id, evalUsers, locationId, evalLocations, latitude, longitude, date);
+						}
+						//Random assignment to train/test
+						else if(random.nextFloat()>testPercentage){
+							addUserAndLocation(id, trainUsers, locationId, trainLocations, latitude, longitude, date);
+						} else{
+							addUserAndLocation(id, evalUsers, locationId, evalLocations, latitude, longitude, date);
+						}
 					}
-					else if(evalUsers.get(id) != null && evalUsers.get(id).getCheckinsForLocation(locationId)!=null){
-						addUserAndLocation(id, evalUsers, locationId, evalLocations, latitude, longitude, date);
+					if (dataset.getPercentItem().equals(PERCENTAGE_ITEM.time)){
+						float totalCheckins = 5310346f;
+						//only correct for CEPR gowalla dataset
+						count++;
+						float trainPercent = 1 - testPercentage;
+						if(count/totalCheckins < trainPercent){
+							addUserAndLocation(id, trainUsers, locationId, trainLocations, latitude, longitude, date);
+						} else{
+							addUserAndLocation(id, evalUsers, locationId, evalLocations, latitude, longitude, date);
+						}
 					}
-					else if(random.nextFloat()>testPercentage){
-						addUserAndLocation(id, trainUsers, locationId, trainLocations, latitude, longitude, date);
-					} else{
-						addUserAndLocation(id, evalUsers, locationId, evalLocations, latitude, longitude, date);
-					}
+					
 
 				}
 
