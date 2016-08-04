@@ -117,18 +117,21 @@ public class WekaDataReader {
 		 * now just filters by days
 		 */
 		
-		switch(choice){
-//		case 0: return getWekaFromMatrix(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,0,1.0f);
-//		case 1: return getWekaFromMatrix(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,1,1.0f);
-//		case 2: return getWekaFromMatrix(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,0,0.1f);
-//		case 3: return getWekaFromMatrix(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,1,0.1f);
-		case 0: return getWekaUndersample(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,0);
-		case -1: return getWekaUndersample(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,0);
 		
+		return getWekaUndersample(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,choice);
 		
-		default: return getWekaUndersample(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,choice);
-//		default: return getWekaFromMatrix(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,0,1.0f);
-		}
+//		switch(choice){
+////		case 0: return getWekaFromMatrix(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,0,1.0f);
+////		case 1: return getWekaFromMatrix(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,1,1.0f);
+////		case 2: return getWekaFromMatrix(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,0,0.1f);
+////		case 3: return getWekaFromMatrix(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,1,0.1f);
+//		case 0: return getWekaUndersample(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,0);
+//		case -1: return getWekaUndersample(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,0);
+//		
+//		
+//		default: return getWekaUndersample(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,choice);
+////		default: return getWekaFromMatrix(trainUsers, trainLocations,socialWeight, gaussScale, endOfTraining,0,1.0f);
+//		}
 	
 		
 	}
@@ -273,14 +276,17 @@ public class WekaDataReader {
 				ArrayList<Date> visits = trainUser.getCheckinsForLocation(locationId);
 				
 				boolean visited = (visits != null);
+				Date date = endOfTraining;
 				if(visited){
 					Date last = visits.get(visits.size() - 1);
 					Date first  = visits.get(0);
-					if(trainWindow>0 && last.before(startOfTraining) && first.before(startOfTraining)){
+					Date lastVisit = first.before(last) ? last : first;
+//					if(trainWindow>0 && last.before(startOfTraining) && first.before(startOfTraining)){
+					if(trainWindow>0 && lastVisit.before(startOfTraining)){
 						continue;
 					}
 				}
-				Date date = !visited ? endOfTraining : visits.get(0);
+//				Date date = !visited ? endOfTraining : visits.get(0);
 
 				Instance instance = WekaInstanceHelper.createInstance(trainUser, trainLocation,
 						dataset.getStartDate(), date, visited, socialWeight, gaussScale);

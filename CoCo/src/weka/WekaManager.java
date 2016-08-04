@@ -32,7 +32,7 @@ public class WekaManager {
 	private HashMap<String, Location> evalLocations;
 	private Float socialWeight;
 	private Double gaussScale;
-	private int samplingChoice;
+	private int samplingTimeWindow;
 	private boolean novel;
 	private Date endOfTraining;
 //	private double PREDICTION_WEIGHT_THRESHOLD = 2854.3; //Maybe 11.5 for average checkins
@@ -54,7 +54,7 @@ public class WekaManager {
 		this.socialWeight = socialWeight;
 		this.gaussScale = gaussScale;
 		this.novel = novel;
-		this.samplingChoice = samplingChoice;
+		this.samplingTimeWindow = samplingChoice;
 	}
 
 	private void assignMappings(HashMap<Integer, User> trainUsers, HashMap<String, Location> trainLocations,
@@ -75,7 +75,7 @@ public class WekaManager {
 		long startTime = System.currentTimeMillis();
 		logger.log("Start weka instances at:" + startTime);
 		Instances instances = wekaReader.getWekaInstances(trainUsers, trainLocations,
-				socialWeight, gaussScale, endOfTraining, samplingChoice);
+				socialWeight, gaussScale, endOfTraining, samplingTimeWindow);
 		long duration = (System.currentTimeMillis() - startTime);
 		logger.log("Weka instances took:" + duration);
 		
