@@ -49,12 +49,12 @@ public class WekaManager {
 				recommender.getEvalUsers(), recommender.getEvalLocations());
 	}
 	
-	private WekaManager(Dataset dataset, float socialWeight,Double gaussScale, boolean novel, int samplingChoice){
+	private WekaManager(Dataset dataset, float socialWeight,Double gaussScale, boolean novel, int samplingTime){
 		this.dataset = dataset;
 		this.socialWeight = socialWeight;
 		this.gaussScale = gaussScale;
 		this.novel = novel;
-		this.samplingTimeWindow = samplingChoice;
+		this.samplingTimeWindow = samplingTime;
 	}
 
 	private void assignMappings(HashMap<Integer, User> trainUsers, HashMap<String, Location> trainLocations,
