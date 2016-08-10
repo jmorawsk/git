@@ -268,17 +268,8 @@ public class Recommender {
 				List<HashMap<String, Float>> topItems = new ArrayList<HashMap<String, Float>>();
 				
 				topItems.add(PredictionHelper.topNpredictions(current, outputSize, isNovel()));
-				try{
 				topItems.add( PredictionHelper.topNspatialPredictions(
 						current, outputSize, isNovel(), gaussScale));
-				}
-				catch(Exception e){
-					System.out.println(e.toString());
-					e.printStackTrace();
-					System.out.println("User:" + current.getId());
-					topItems.add( PredictionHelper.topNspatialPredictions(
-							current, outputSize, isNovel(), gaussScale));
-				}
 				topItems.add(PredictionHelper.topNTemporalPredictionsGeneral(current, outputSize, isNovel(),
 						getDataset().getStartDate(),endOfTesting));
 				topItems.add(PredictionHelper.topNFriendPredictions(current, outputSize, isNovel()));
